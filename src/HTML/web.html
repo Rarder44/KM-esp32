@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KV-ESP32</title>
+    <style>
+        body {
+            margin: 0px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" style="background-color:red;width:100px; height:100px;"></canvas>
+    <script>
+
+
+    const KEY_EVENTS = Object.freeze({
+        KEY_UP: 0,
+        KEY_DOWN: 1,
+        KEY_PRESS: 2,
+    });
+    function keyEventsToString(event)
+    {
+        switch(event)
+        {
+            case KEY_EVENTS.KEY_UP:
+                return "KEY_UP";
+            case KEY_EVENTS.KEY_DOWN:
+                return "KEY_DOWN";
+            case KEY_EVENTS.KEY_PRESS:
+                return "KEY_CLICK";
+        }
+        return "KEY_EVENT_ERR";
+    }
+    
+    const MOUSE_EVENTS = Object.freeze({
+        MOUSE_UP: 0,
+        MOUSE_DOWN: 1,
+        MOUSE_CLICK: 2,
+        MOUSE_MOVE:3,
+        MOUSE_WHEEL:4
+    });
+    function mouseEventsToString(event)
+    {
+        switch(event)
+        {
+            case MOUSE_EVENTS.MOUSE_UP:
+                return "MOUSE_UP";
+            case MOUSE_EVENTS.MOUSE_DOWN:
+                return "MOUSE_DOWN";
+            case MOUSE_EVENTS.MOUSE_CLICK:
+                return "MOUSE_CLICK";
+            case MOUSE_EVENTS.MOUSE_MOVE:
+                return "MOUSE_MOVE";
+             case MOUSE_EVENTS.MOUSE_WHEEL:
+                return "MOUSE_WHEEL";
+        }
+        return "MOUSE_EVENT_ERR";
+    }
+    
+    
+    const EVENTS = Object.freeze({
+        NO_EVENT: 0,
+        KEYBOARD: 1,
+        MOUSE: 2,
+        COPY:3
+    });
+
+
+
+    // Inizializza WebSocket verso ESP32 (modifica IP/porta secondo setup)
+    let ws=null;
+    initWebSocket();
+
+    function initWebSocket() {
+        console.log('Trying to open a WebSocket connection...');
+        ws = new WebSocket('ws://' + window.location.hostname + '/ws'); // esempio IP hotspot ESP32
+        ws.binaryType = 'arraybuffer';  // Assicura invio in binario
+        
+        ws.onopen  = () => console.log('WebSocket aperto');
+        ws.onclose = () => {
+            console.log('WebSocket chiuso')
+            setTimeout(initWebSocket, 20);
+        }
+        ws.onerror = e => console.error('WebSocket errore', e);
+        ws.onmessage = e => console.log('Messaggio da ESP32:', e.data);
+    }
+
+
+    function sendWS(eventType,event, data1,data2=null)
+    {
+
+        data1 = toInt16(data1);
+
+
+        let buffer = new Uint8Array(6);
+        buffer[0] = eventType;       // Tipo evento: tastiera
+        buffer[1] = event;    // Evento key down
+        buffer[2] = (data1 >> 8) & 0xFF; // Byte alto (big-endian)
+        buffer[3] = data1 & 0xFF;        // Byte basso
+
+        if( data2!=null)
+            data2 = toInt16(data2);
+            buffer[4] = (data2 >> 8) & 0xFF; // Byte alto (big-endian)
+            buffer[5] = data2 & 0xFF;        // Byte basso
+        
+        //console.log(buffer);
+        ws.send(buffer.buffer);            // invia arraybuffer binario   
+    }
+
+           
+    const canvas = document.getElementById('canvas');
+
+    // Richiesta blocco mouse al click
+    canvas.addEventListener('click', () => {
+        if (canvas.requestPointerLock) {
+            canvas.requestPointerLock();
+        }
+    });
+
+    // Listener stato pointerlock
+    document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement === canvas) {
+            // Mouse bloccato: registriamo movimenti
+            canvas.addEventListener('mousemove', logMouseMovements);
+            canvas.addEventListener('mousedown', logMouseDown);
+            canvas.addEventListener('mouseup', logMouseUp);
+            canvas.addEventListener('click', logMouseClick);
+            document.addEventListener('wheel', logMouseWheel);
+
+            document.addEventListener('keydown', logKEYDOWN);
+            document.addEventListener('keyup', logKEYUP);
+            document.addEventListener('keypress', logKEYPRESS);
+            
+
+
+        } else {
+            // Mouse sbloccato: smetti di tracciare
+            canvas.removeEventListener('mousemove', logMouseMovements);
+            canvas.removeEventListener('mousedown', logMouseDown);
+            canvas.removeEventListener('mouseup', logMouseUp);
+            canvas.removeEventListener('click', logMouseClick);
+            document.removeEventListener('wheel', logMouseWheel);
+
+
+            document.removeEventListener('keydown', logKEYDOWN);
+            document.removeEventListener('keyup', logKEYUP);
+            document.removeEventListener('keypress', logKEYPRESS);
+            console.log("USCITO"); 
+        }
+    });
+    
+    function logKEYUP(e) {
+        logKey(KEY_EVENTS.KEY_UP,e);
+    }
+    function logKEYPRESS(e) {
+        logKey(KEY_EVENTS.KEY_PRESS,e);
+    }
+    function logKEYDOWN(e) {
+        logKey(KEY_EVENTS.KEY_DOWN,e);
+    }
+
+
+    function logMouseMovements(e) {
+        logMouse(MOUSE_EVENTS.MOUSE_MOVE,e);
+    }
+    function logMouseDown(e) {
+        logMouse(MOUSE_EVENTS.MOUSE_DOWN,e);
+    }
+    function logMouseUp(e) {
+        logMouse(MOUSE_EVENTS.MOUSE_UP,e);
+    }
+    function logMouseClick(e) {
+        logMouse(MOUSE_EVENTS.MOUSE_CLICK,e);
+    }
+
+    function logMouseWheel(e) {
+        logMouse(MOUSE_EVENTS.MOUSE_WHEEL,e);
+    }
+
+
+
+
+    function logKey(type,e)
+    {
+        console.log(keyEventsToString(type), e.key, e.code,e.keyCode,"hid: "+codeToHID(e.code));
+        
+        //alt left bloccato xke sblocca in il lock
+        if (e.key === 'AltLeft' || e.key === 'Alt') {
+            e.preventDefault();
+        }
+        //uso il pause al posto dell'ESC
+        if (e.key === 'Pause' || e.key === 'Pause') {
+            e.preventDefault();
+        }	
+
+        
+        sendWS(EVENTS.KEYBOARD,type,codeToHID(e.code));
+    }
+    function logMouse(type,e)
+    {
+        
+        if( type == MOUSE_EVENTS.MOUSE_MOVE)  
+        { 
+            console.log(mouseEventsToString(type),"deltaX: "+e.movementX,"deltaY: "+e.movementY);
+            sendWS(EVENTS.MOUSE,type,e.movementX,e.movementY);
+        }
+        else if(type == MOUSE_EVENTS.MOUSE_WHEEL)
+        {
+            console.log(mouseEventsToString(type),"delta: "+ e.deltaY);
+            sendWS(EVENTS.MOUSE,type, e.deltaY);
+        }
+        else//click/down/up
+        {
+            console.log(mouseEventsToString(type),"button: "+e.button);
+            sendWS(EVENTS.MOUSE,type,e.button);
+        }
+    }
+
+
+
+    function codeToHID(code) {
+        const map = {
+            //OVERRIDE DEL TASTO PAUSE PER EXIT
+            'Pause': 0x29,
+
+            // Lettere
+            'KeyA': 0x04, 'KeyB': 0x05, 'KeyC': 0x06, 'KeyD': 0x07, 'KeyE': 0x08,
+            'KeyF': 0x09, 'KeyG': 0x0A, 'KeyH': 0x0B, 'KeyI': 0x0C, 'KeyJ': 0x0D,
+            'KeyK': 0x0E, 'KeyL': 0x0F, 'KeyM': 0x10, 'KeyN': 0x11, 'KeyO': 0x12,
+            'KeyP': 0x13, 'KeyQ': 0x14, 'KeyR': 0x15, 'KeyS': 0x16, 'KeyT': 0x17,
+            'KeyU': 0x18, 'KeyV': 0x19, 'KeyW': 0x1A, 'KeyX': 0x1B, 'KeyY': 0x1C,
+            'KeyZ': 0x1D,
+
+            // Numeri sopra le lettere
+            'Digit1': 0x1E, 'Digit2': 0x1F, 'Digit3': 0x20, 'Digit4': 0x21,
+            'Digit5': 0x22, 'Digit6': 0x23, 'Digit7': 0x24, 'Digit8': 0x25,
+            'Digit9': 0x26, 'Digit0': 0x27,
+
+            // Tasti di controllo
+            'Enter': 0x28,
+            'Escape': 0x29,
+            'Backspace': 0x2A,
+            'Tab': 0x2B,
+            'Space': 0x2C,
+
+            // Frecce
+            'ArrowRight': 0x4F,
+            'ArrowLeft': 0x50,
+            'ArrowDown': 0x51,
+            'ArrowUp': 0x52,
+
+            // Altri tasti comuni
+            'CapsLock': 0x39,
+            'F1': 0x3A, 'F2': 0x3B, 'F3': 0x3C, 'F4': 0x3D, 'F5': 0x3E,
+            'F6': 0x3F, 'F7': 0x40, 'F8': 0x41, 'F9': 0x42, 'F10': 0x43,
+            'F11': 0x44, 'F12': 0x45,
+        };
+
+        return map[code] !== undefined ? map[code] : 0x00; // 0x00 = nessun tasto
+    }
+    function toInt16(value) {
+        let num;
+        
+        if (typeof value === 'string' && value.length === 1) {
+            // Se è un carattere singolo, usa il codice char (ASCII/Unicode)
+            num = value.charCodeAt(0);
+        } else if (typeof value === 'number') {
+            num = value;
+        } else {
+            // Per altri tipi prova a forzare la conversione a numero
+            num = Number(value);
+            if (isNaN(num)) num = 0;
+        }
+        
+        // Forza il numero a 16 bit signed tramite operazioni bitwise
+        // Troncamento a 16 bit con segno
+        return (num << 16) >> 16;
+    }
+    
+    
+    </script>
+</body>
+</html>
