@@ -4,7 +4,13 @@
 #include <ESPAsyncWebServer.h>
 #include "HTML/_include_all.h"
 
+#ifndef _MYSERVER_DEF
+#define _MYSERVER_DEF
+
+
 using myServerEventHandler = std::function<void(char incomingPacket[])>;
+
+
 
 class MyServer
 {
@@ -33,11 +39,15 @@ public:
         ws->cleanupClients();
     }
     void init();
+
+    void on(
+        const char *uri, 
+        WebRequestMethodComposite method, 
+        ArRequestHandlerFunction onRequest);
 };
 
 
-#ifndef _MYSERVER_DEF
-#define _MYSERVER_DEF
+
 
 MyServer::MyServer(uint16_t port,String webSocketEndpoint,String MDNS_name)
 {
@@ -88,6 +98,15 @@ void MyServer::init(){
     });
     server->addHandler(ws);
     server->begin();
+}
+
+
+void MyServer::on(
+        const char *uri, 
+        WebRequestMethodComposite method, 
+        ArRequestHandlerFunction onRequest)
+{
+    this->server->on(uri,method,onRequest);
 }
 
 

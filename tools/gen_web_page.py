@@ -30,7 +30,14 @@ for html_file in html_files:
 # Scrive il file _include_all.h
 with open(include_all_path, "w", encoding="utf-8") as f:
     f.write("// Header che include tutte le pagine generate\n")
+    f.write("#ifndef _WEBPAGES_DEF"+ "\n")
+    f.write("#define _WEBPAGES_DEF"+ "\n")
+
+
     for line in include_lines:
         f.write(line + "\n")
+
+    f.write("#endif")
+    
 
 print(f"Generato {include_all_path}")

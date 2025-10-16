@@ -9,23 +9,22 @@
 
 #include "variables.h"
 
-#include <WiFi.h>
+
 #include "USB.h"
 #include "USBHIDMouse.h"
 #include "USBHIDKeyboard.h"
 #include <UrlEncode.h>
-
+#include <Preferences.h>
 
 #include "myServer.h"
 #include "Log.h"
+#include "Wifi_mng.h"
 
 
-//the file "wifi_credential.h" must contains these 2 variables
-//const char* ssid = "ssid";         
-//const char* password = "password"; 
-#include "wifi_credential.h"
 
 
+
+Preferences preferences;
 
 
 USBHIDMouse Mouse;
@@ -35,7 +34,7 @@ USBHIDKeyboard Keyboard;
 MyServer server(webServerPort,webSocketEndpoint,MDNS_name);
 
 
-
+Wifi_mng wifi;
 
 
 void manageKeyboardEvent(char incomingPacket[]);
@@ -130,9 +129,6 @@ void managePacket(char incomingPacket[] )
   }
   return ; 
 }
-
-
-
 
 
 void manageKeyboardEvent(char incomingPacket[])
@@ -270,22 +266,16 @@ void setup() {  // initialize the buttons' inputs:
 
 
   
-  //Wifi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    out.color(255,0,0);
-    delay(250);
-    out.color(0,0,0);
-    delay(250);
-  }
-  out.str("WiFi connected");
-  out.color(0,255,0);
-  delay(250);
-  out.color(0,0,0);
-
-
+  wifi.init();
   server.init();
+
+  
+  wifi.attachEndPoints(server);
+
+
   server.onEvent(managePacket);
+
+
   
 }
 void loop() {
