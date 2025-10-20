@@ -170,6 +170,9 @@
         initWebSocket();
 
         function initWebSocket() {
+            return;
+
+
             console.log('Trying to open a WebSocket connection...');
             ws = new WebSocket('ws://' + window.location.hostname + '/ws'); // esempio IP hotspot ESP32
             ws.binaryType = 'arraybuffer';  // Assicura invio in binario
@@ -185,6 +188,7 @@
 
 
         function sendWS(eventType, event, data1, data2 = null) {
+            return;
 
             data1 = toInt16(data1);
 
@@ -278,7 +282,7 @@
 
 
         function logKey(type, e) {
-            console.log(keyEventsToString(type), e.key, e.code, e.keyCode, "hid: " + codeToHID(e.code));
+            console.log(keyEventsToString(type), e.key, "CODE >"+e.code+"<", e.keyCode, "hid: " + codeToHID(e.code));
 
             //alt left bloccato xke sblocca in il lock
             if (e.key === 'AltLeft' || e.key === 'Alt') {
@@ -376,7 +380,21 @@
                 'NumpadSubtract': 0x56,
                 'NumpadMultiply': 0x55,
                 'NumpadDivide': 0x54,
-                'NumpadDecimal': 0x63
+                'NumpadDecimal': 0x63,
+                'BracketLeft': 0x2F,
+                'BracketRight': 0x30,
+
+                'Slash': 0x38,
+                'Backslash': 0x31,
+                'Semicolon': 0x33,
+                'Quote': 0x34,
+                'Backquote': 0x35,
+                'Comma': 0x36,
+                'Period': 0x37,
+                'Minus': 0x2D,
+                'Equal': 0x2E,
+                'IntlBackslash': 0x64 //tasto \ accanto allo shift sinistro in alcune tastiere
+
 
             };
 
@@ -448,38 +466,54 @@
                     ')': ['ShiftLeft','Digit9'],
                     '=': ['ShiftLeft','Digit0'],
 
-                    '-': ['Minus'],
-                    '_': ['ShiftLeft','Minus'],
-                    '=': ['Equal'],
-                    '+': ['ShiftLeft','Equal'],
+                    '\\': ['Backquote'],
+                    '|': ['ShiftLeft','Backquote'],
 
-                    '[': ['BracketLeft'],
-                    '{': ['ShiftLeft','BracketLeft'],
-                    ']': ['BracketRight'],
-                    '}': ['ShiftLeft','BracketRight'],
 
-                    '\\': ['Backslash'],
-                    '|': ['ShiftLeft','Backslash'],
-
-                    ';': ['Semicolon'],
-                    ':': ['ShiftLeft','Semicolon'],
-
-                    '\'': ['Quote'],
-                    '"': ['ShiftLeft','Quote'],
-
-                    '`': ['Backquote'],
-                    '~': ['ShiftLeft','Backquote'],
+                    '<': ['IntlBackslash'],
+                    '>': ['ShiftLeft','IntlBackslash'],
 
                     ',': ['Comma'],
-                    '<': ['ShiftLeft','Comma'],
+                    ';': ['ShiftLeft','Comma'],
+
                     '.': ['Period'],
-                    '>': ['ShiftLeft','Period'],
-                    '/': ['Slash'],
-                    '?': ['ShiftLeft','Slash'],
+                    ':': ['ShiftLeft','Period'],
+
+                    '-': ['Slash'],
+                    '_': ['ShiftLeft','Slash'],
+
+                    'ò': ['Semicolon'],
+                    'ç': ['ShiftLeft','Semicolon'],
+                    '@': ['ControlLeft','AltRight','Semicolon'],
+
+                    'à': ['Quote'],
+                    '°': ['ShiftLeft','Quote'],
+                    '#': ['ControlLeft','AltRight','Quote'],
+
+                    'è': ['BracketLeft'],
+                    'é': ['ShiftLeft','BracketLeft'],
+                    '[': ['ControlLeft','AltRight','BracketLeft'],
+                    '{': ['ShiftLeft','ControlLeft','AltRight','BracketLeft'],
+
+                    '+': ['BracketRight'],
+                    '*': ['ShiftLeft','BracketRight'],
+                    ']': ['ControlLeft','AltRight','BracketRight'],
+                    '}': ['ShiftLeft','ControlLeft','AltRight','BracketRight'],
+
+
+                    'ù': ['Backslash'],
+                    '§': ['ShiftLeft','Backslash'],
+
+                    '\'': ['Minus'],
+                    '?': ['ShiftLeft','Minus'],
+
+                    'ì': ['Equal'],
+                    '^': ['ShiftLeft','Equal'],
+                    
 
                     ' ': ['Space'],
                     '\n': ['Enter'],
-                    '\r': ['Enter'],
+                    //'\r': ['Enter'],  evito lo /r cosi da non inva doppio invio su windows
                     '\t': ['Tab'],
                 };
 
